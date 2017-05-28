@@ -230,16 +230,18 @@ public class ParquetFileReader implements Closeable {
   public static List<Footer> readAllFootersInParallel(final Configuration configuration, List<FileStatus> partFiles, final boolean skipRowGroups) throws IOException {
     List<Callable<Footer>> footers = new ArrayList<Callable<Footer>>();
     for (final FileStatus currentFile : partFiles) {
-      footers.add(new Callable<Footer>() {
-        @Override
-        public Footer call() throws Exception {
-          try {
-            return new Footer(currentFile.getPath(), readFooter(configuration, currentFile, filter(skipRowGroups)));
-          } catch (IOException e) {
-            throw new IOException("Could not read footer for file " + currentFile, e);
+      if(!currentFile.getPath().getName().startsWith(".")) {
+        footers.add(new Callable<Footer>() {
+          @Override
+          public Footer call() throws Exception {
+            try {
+              return new Footer(currentFile.getPath(), readFooter(configuration, currentFile, filter(skipRowGroups)));
+            } catch (IOException e) {
+              throw new IOException("Could not read footer for file " + currentFile, e);
+            }
           }
-        }
-      });
+        });
+      }
     }
     try {
       return runAllInParallel(configuration.getInt(PARQUET_READ_PARALLELISM, 5), footers);
